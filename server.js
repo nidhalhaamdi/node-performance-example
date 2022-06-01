@@ -1,4 +1,6 @@
 const express = require('express');
+const cluster = require('cluster');
+const os = require('os');
 
 const app = express();
 
@@ -12,18 +14,26 @@ function delay(duration) {
 // We're gonna have 2 routes
 
 app.get('/', (req, res) => {
-    // JSON.stringify({}) => "{}"
-    // JSON.parse("{}") => {}
-    // [5,3,2,6,1].sort() 
-    // ---> these are real life functions that block the event loop especially for very large objects or arrays
-    res.send('Performance Example');
+    res.send(`Performance Example: ${process.pid}`); // get the id of the current process from the operating system
 });
 
 app.get('/timer', (req, res) => {
     delay(9000);
-    res.send('Ding ding ding!');
+    res.send(`Ding ding ding!: ${process.pid}`);
 });
 
-app.listen(3000, () => {
-    console.log('Listening on port 3000...');
-});
+console.log('Running server.js ...');
+
+if (cluster.isMaster) {
+    console.log('Master has been started...');
+    const NUM_WORKERS = os.cpus().length;
+    for (let i = 0; i < NUM_WORKERS; i++) {
+        cluster.fork();
+    }
+} else {
+    console.log('Worker process started.');
+    /* Node knows that each of our workers will be listening on the same port, on Port 3000 
+    & the node HTTP server knows to divide incoming requests that are coming in on Port 3000 
+    between the different worker processes. */
+    app.listen(3000);
+}
